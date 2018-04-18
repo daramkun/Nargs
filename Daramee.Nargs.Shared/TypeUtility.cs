@@ -56,12 +56,37 @@ namespace Daramee.Nargs
 			return null;
 		}
 
-		public void SetValue<T1, T2> ( T1 obj, MemberInfo memberInfo, T2 value )
+		public bool SetValue<T> ( ref T obj, MemberInfo memberInfo, object value )
 		{
 			if ( memberInfo is PropertyInfo )
-				( memberInfo as PropertyInfo ).SetValue ( obj, value );
+			{
+				if ( ( memberInfo as PropertyInfo ).CanWrite )
+				{
+					if ( obj.GetType ().IsClass )
+						( memberInfo as PropertyInfo ).SetValue ( obj, value );
+					else
+					{
+						object boxed = obj;
+						( memberInfo as PropertyInfo ).SetValue ( boxed, value, null );
+						obj = ( T ) boxed;
+					}
+				}
+				else
+					return ( memberInfo as PropertyInfo ).GetValue ( obj ).Equals ( value );
+				return true;
+			}
 			else if ( memberInfo is FieldInfo )
-				( memberInfo as FieldInfo ).SetValue ( obj, value );
+			{
+				if ( obj.GetType ().IsClass )
+					( memberInfo as FieldInfo ).SetValue ( obj, value );
+				else
+				{
+					TypedReference tr = __makeref(obj);
+					( memberInfo as FieldInfo ).SetValueDirect ( tr, value );
+				}
+				return true;
+			}
+			return false;
 		}
     }
 }

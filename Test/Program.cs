@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Test
 {
-	class PingArgument
+	struct PingArgument
 	{
 		[Argument]
 		public string Host { get; set; }

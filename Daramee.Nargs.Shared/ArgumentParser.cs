@@ -97,55 +97,56 @@ namespace Daramee.Nargs
 						argsQueue.Peek ().Substring ( 0, style.ShortNamePrestring.Length ) != style.ShortNamePrestring )
 						value = argsQueue.Dequeue ();
 
+				object settingValue = null;
+
 				if ( memberType == typeof ( bool ) )
-					util.SetValue<T, bool> ( ret, member, ConvertBoolean ( value ) );
+					settingValue = ConvertBoolean ( value );
 				else if ( memberType == typeof ( string ) )
-					util.SetValue<T, string> ( ret, member, value );
+					settingValue = value;
 				else if ( memberType == typeof ( int ) )
-					util.SetValue<T, int> ( ret, member, int.Parse ( value ) );
+					settingValue = int.Parse ( value );
 				else if ( memberType == typeof ( uint ) )
-					util.SetValue<T, uint> ( ret, member, uint.Parse ( value ) );
+					settingValue = uint.Parse ( value );
 				else if ( memberType == typeof ( short ) )
-					util.SetValue<T, short> ( ret, member, short.Parse ( value ) );
+					settingValue = short.Parse ( value );
 				else if ( memberType == typeof ( ushort ) )
-					util.SetValue<T, ushort> ( ret, member, ushort.Parse ( value ) );
+					settingValue = ushort.Parse ( value );
 				else if ( memberType == typeof ( long ) )
-					util.SetValue<T, long> ( ret, member, long.Parse ( value ) );
+					settingValue = long.Parse ( value );
 				else if ( memberType == typeof ( ulong ) )
-					util.SetValue<T, ulong> ( ret, member, ulong.Parse ( value ) );
+					settingValue = ulong.Parse ( value );
 				else if ( memberType == typeof ( byte ) )
-					util.SetValue<T, byte> ( ret, member, byte.Parse ( value ) );
+					settingValue = byte.Parse ( value );
 				else if ( memberType == typeof ( sbyte ) )
-					util.SetValue<T, sbyte> ( ret, member, sbyte.Parse ( value ) );
+					settingValue = sbyte.Parse ( value );
 				else if ( memberType == typeof ( float ) )
-					util.SetValue<T, float> ( ret, member, float.Parse ( value ) );
+					settingValue = float.Parse ( value );
 				else if ( memberType == typeof ( double ) )
-					util.SetValue<T, double> ( ret, member, double.Parse ( value ) );
+					settingValue = double.Parse ( value );
 				else if ( memberType == typeof ( DateTime ) )
-					util.SetValue<T, DateTime> ( ret, member, DateTime.Parse ( value ) );
+					settingValue = DateTime.Parse ( value );
 				else if ( memberType == typeof ( TimeSpan ) )
-					util.SetValue<T, TimeSpan> ( ret, member, TimeSpan.Parse ( value ) );
+					settingValue = TimeSpan.Parse ( value );
 				else if ( memberType == typeof ( Enum ) )
 				{
 					try
 					{
-						object parsed = Enum.Parse ( memberType, value, true );
-						util.SetValue<T, object> ( ret, member, parsed );
+						settingValue = Enum.Parse ( memberType, value, true );
 					}
 					catch
 					{
-						util.SetValue<T, int> ( ret, member, int.Parse ( value ) );
+						settingValue = int.Parse ( value );
 					}
 				}
 				else if ( memberType == typeof ( string [] ) )
 				{
-					util.SetValue<T, string []> ( ret, member, value.Split ( '|' ) );
+					settingValue = value.Split ( '|' );
 				}
 				else
 				{
 					try
 					{
-						util.SetValue<T, object> ( ret, member, Activator.CreateInstance ( memberType, value ) );
+						settingValue = Activator.CreateInstance ( memberType, value );
 					}
 					catch
 					{
@@ -157,12 +158,15 @@ namespace Daramee.Nargs
 							if ( ps.Length != 1 ) continue;
 							if ( ps [ 0 ].ParameterType == typeof ( string ) )
 							{
-								util.SetValue<T, object> ( ret, member, methodInfo.Invoke ( memberType, new object [] { value } ) );
+								settingValue = methodInfo.Invoke ( memberType, new object [] { value } );
 								break;
 							}
 						}
 					}
 				}
+
+				if ( !util.SetValue<T> ( ref ret, member, settingValue ) )
+					throw new ArgumentException ();
 			}
 
 			return ret;
