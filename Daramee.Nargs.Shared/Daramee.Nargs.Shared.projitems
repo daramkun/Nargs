@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>e13faa4a-99bd-4a4d-8a1c-c1d3260278cd</SharedGUID>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <Import_RootNamespace>Daramee.Nargs.Shared</Import_RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)ArgumentAttribute.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ArgumentParser.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ArgumentStyle.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)TypeUtility.cs" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net45;netstandard20</TargetFrameworks>
+  </PropertyGroup>
+
+  <Import Project="..\Daramee.Nargs.Shared\Daramee.Nargs.Shared.projitems" Label="Shared" />
+
+</Project>
