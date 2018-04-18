@@ -6,11 +6,12 @@
     <SharedGUID>e13faa4a-99bd-4a4d-8a1c-c1d3260278cd</SharedGUID>
   </PropertyGroup>
   <PropertyGroup Label="Configuration">
-    <Import_RootNamespace>Daramee.Nargs.Shared</Import_RootNamespace>
+    <Import_RootNamespace>Daramee.Nargs</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)ArgumentAttribute.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ArgumentParser.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ArgumentStoreAttribute.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ArgumentStyle.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)TypeUtility.cs" />
   </ItemGroup>

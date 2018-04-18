@@ -2,6 +2,16 @@
 
   <PropertyGroup>
     <TargetFrameworks>net45;netstandard20</TargetFrameworks>
+    <Title>Nargs</Title>
+    <Authors>Daramee</Authors>
+    <Company>DARAM WORLD</Company>
+    <Product>Nargs</Product>
+    <Copyright>Copyright (C) 2018 Jin Jae-yeon</Copyright>
+    <PackageLicenseUrl>https://github.com/daramkun/Nargs/blob/master/LICENSE</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/daramkun/Nargs</PackageProjectUrl>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <RepositoryUrl>https://github.com/daramkun/Nargs</RepositoryUrl>
+    <RepositoryType>GitHub</RepositoryType>
   </PropertyGroup>
 
   <Import Project="..\Daramee.Nargs.Shared\Daramee.Nargs.Shared.projitems" Label="Shared" />

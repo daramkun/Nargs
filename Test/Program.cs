@@ -13,6 +13,8 @@ namespace Test
 		public string Host { get; set; }
 		[Argument ( Name = "t" )]
 		public bool UntilStop { get; set; }
+		[ArgumentStore]
+		public Dictionary<string, string> Stored { get; set; }
 
 		public override string ToString ()
 		{
@@ -24,7 +26,7 @@ namespace Test
 	{
 		static void Main ( string [] args )
 		{
-			args = new string [] { "192.168.0.1", "/t" };
+			args = new string [] { "192.168.0.1", "/t", "/asdf" };
 			var arg = ArgumentParser.Parse<PingArgument> ( args, ArgumentStyle.DOSStyle );
 
 			Console.WriteLine ( arg );

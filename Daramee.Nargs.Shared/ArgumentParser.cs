@@ -86,10 +86,17 @@ namespace Daramee.Nargs
 				}
 
 				MemberInfo member = util.GetMember ( style, key, isShortName );
-				if ( member == null && !skipNoMember )
-					throw new ArgumentException ();
-				else if ( member == null && skipNoMember )
-					continue;
+				if ( member == null )
+				{
+					if ( util.ArgumentStoreMember != null )
+					{
+						util.SetValue<T> ( ref ret, key, value );
+						continue;
+					}
+					else if ( skipNoMember )
+						continue;
+					else throw new ArgumentException ( "Unknown argument(s) detected." );
+				}
 
 				Type memberType = GetMemberType ( member );
 				if ( style.Separator == ArgumentKeyValueSeparator.Space && memberType != typeof ( bool ) && value == null && argsQueue.Count > 0 )

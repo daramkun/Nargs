@@ -10,6 +10,9 @@ namespace Daramee.Nargs
 		Type type;
 
 		List<MemberInfo> memberInfoList = new List<MemberInfo> ();
+		MemberInfo argumentStore;
+
+		public MemberInfo ArgumentStoreMember => argumentStore;
 
 		public TypeUtility ( Type type )
 		{
@@ -18,7 +21,18 @@ namespace Daramee.Nargs
 			foreach ( var memberInfo in type.GetMembers () )
 			{
 				if ( memberInfo.GetCustomAttribute<ArgumentAttribute> () == null )
+				{
+					if ( memberInfo.GetCustomAttribute<ArgumentStoreAttribute> () == null )
+						continue;
+					if ( memberInfo is PropertyInfo && ( memberInfo as PropertyInfo ).PropertyType != typeof ( Dictionary<string, string> ) )
+						if ( memberInfo is FieldInfo && ( memberInfo as FieldInfo ).FieldType != typeof ( Dictionary<string, string> ) )
+							throw new ArgumentException ( "ArgumentStoreAttribute's type must be Dictionary<string, string>." );
+
+					if ( argumentStore != null )
+						throw new ArgumentException ( "ArgumentStoreAttribute must have one or lesser." );
+					argumentStore = memberInfo;
 					continue;
+				}
 				memberInfoList.Add ( memberInfo );
 			}
 		}
@@ -87,6 +101,20 @@ namespace Daramee.Nargs
 				return true;
 			}
 			return false;
+		}
+
+		public bool SetValue<T> ( ref T obj, string key, string value )
+		{
+			Dictionary<string, string> member;
+			if ( ArgumentStoreMember is PropertyInfo )
+				member = ( ArgumentStoreMember as PropertyInfo ).GetValue ( obj ) as Dictionary<string, string>;
+			else if ( ArgumentStoreMember is FieldInfo )
+				member = ( ArgumentStoreMember as FieldInfo ).GetValue ( obj ) as Dictionary<string, string>;
+			else return false;
+			if ( member == null ) member = new Dictionary<string, string> ();
+			member.Add ( key, value ?? "true" );
+			SetValue<T> ( ref obj, ArgumentStoreMember, member );
+			return true;
 		}
     }
 }
