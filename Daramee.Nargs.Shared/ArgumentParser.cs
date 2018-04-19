@@ -47,10 +47,9 @@ namespace Daramee.Nargs
 			else return null;
 		}
 
-		public static T Parse<T> ( string [] args, ArgumentStyle style, bool skipNoMember = false )
+		public static object Parse ( Type retType, string [] args, ArgumentStyle style, bool skipNoMember = false )
 		{
-			T ret = Activator.CreateInstance<T> ();
-			Type retType = typeof ( T );
+			object ret = Activator.CreateInstance ( retType );
 			TypeUtility util = new TypeUtility ( retType );
 
 			char separatorChar = ConvertSeparator ( style.Separator );
@@ -77,8 +76,8 @@ namespace Daramee.Nargs
 				else
 				{
 					key = arg;
-					if ( key.Substring ( 0, style.NamePrestring.Length) != style.NamePrestring )
-						if ( key.Substring ( 0, style.ShortNamePrestring.Length) != style.ShortNamePrestring )
+					if ( key.Substring ( 0, style.NamePrestring.Length ) != style.NamePrestring )
+						if ( key.Substring ( 0, style.ShortNamePrestring.Length ) != style.ShortNamePrestring )
 						{
 							value = key;
 							key = null;
@@ -90,7 +89,7 @@ namespace Daramee.Nargs
 				{
 					if ( util.ArgumentStoreMember != null )
 					{
-						util.SetValue<T> ( ref ret, key, value );
+						util.SetValue ( ref ret, key, value );
 						continue;
 					}
 					else if ( skipNoMember )
@@ -172,11 +171,16 @@ namespace Daramee.Nargs
 					}
 				}
 
-				if ( !util.SetValue<T> ( ref ret, member, settingValue ) )
+				if ( !util.SetValue ( ref ret, member, settingValue ) )
 					throw new ArgumentException ();
 			}
 
 			return ret;
+		}
+
+		public static T Parse<T> ( string [] args, ArgumentStyle style, bool skipNoMember = false )
+		{
+			return ( T ) Parse ( typeof ( T ), args, style, skipNoMember );
 		}
     }
 }
