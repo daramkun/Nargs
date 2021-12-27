@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net45;netstandard20</TargetFrameworks>
     <Title>Nargs</Title>
     <Authors>Daramee</Authors>
     <Company>DARAM WORLD</Company>
@@ -12,6 +11,9 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <RepositoryUrl>https://github.com/daramkun/Nargs</RepositoryUrl>
     <RepositoryType>GitHub</RepositoryType>
+    <LangVersion>default</LangVersion>
+    <Nullable>enable</Nullable>
+    <TargetFramework>net6.0</TargetFramework>
   </PropertyGroup>
 
   <Import Project="..\Daramee.Nargs.Shared\Daramee.Nargs.Shared.projitems" Label="Shared" />
