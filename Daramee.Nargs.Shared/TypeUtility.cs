@@ -1,120 +1,128 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 
-namespace Daramee.Nargs
+namespace Daramee.Nargs;
+
+internal class TypeUtility
 {
-	public class TypeUtility
-	{
-		Type type;
+    private readonly Dictionary<ArgumentAttribute, MemberInfo> _memberInfos = new();
+    public MemberInfo? ArgumentStoreMember { get; } = null;
 
-		List<MemberInfo> memberInfoList = new List<MemberInfo> ();
-		MemberInfo argumentStore;
+    public IEnumerable<ArgumentAttribute> ValidMembers => _memberInfos.Keys;
 
-		public MemberInfo ArgumentStoreMember => argumentStore;
+    public TypeUtility(Type type)
+    {
+        foreach (var memberInfo in type.GetMembers())
+        {
+            if (memberInfo is not PropertyInfo and not FieldInfo)
+                continue;
+            
+            var argAttr = memberInfo.GetCustomAttribute<ArgumentAttribute>();
+            var argStoreAttr = memberInfo.GetCustomAttribute<ArgumentStoreAttribute>();
 
-		public TypeUtility ( Type type )
-		{
-			this.type = type;
+            if (argStoreAttr != null && argAttr != null)
+                throw new ArgumentException("Argument Attributes must have one type.", nameof(type));
 
-			foreach ( var memberInfo in type.GetMembers () )
-			{
-				if ( memberInfo.GetCustomAttribute<ArgumentAttribute> () == null )
-				{
-					if ( memberInfo.GetCustomAttribute<ArgumentStoreAttribute> () == null )
-						continue;
-					if ( memberInfo is PropertyInfo && ( memberInfo as PropertyInfo ).PropertyType != typeof ( Dictionary<string, string> ) )
-						if ( memberInfo is FieldInfo && ( memberInfo as FieldInfo ).FieldType != typeof ( Dictionary<string, string> ) )
-							throw new ArgumentException ( "ArgumentStoreAttribute's type must be Dictionary<string, string>." );
+            if (argStoreAttr != null && ArgumentStoreMember != null)
+                throw new ArgumentException("Argument Store Attribute must have single member.", nameof(type));
 
-					if ( argumentStore != null )
-						throw new ArgumentException ( "ArgumentStoreAttribute must have one or lesser." );
-					argumentStore = memberInfo;
-					continue;
-				}
-				memberInfoList.Add ( memberInfo );
-			}
-		}
+            if (argStoreAttr != null)
+            {
+                switch (memberInfo)
+                {
+                    case PropertyInfo propertyInfo when propertyInfo.PropertyType == typeof(Dictionary<string, string>):
+                    case FieldInfo fieldInfo when fieldInfo.FieldType == typeof(Dictionary<string, string>):
+                        ArgumentStoreMember = memberInfo;
+                        break;
+                    default:
+                        throw new ArgumentException("ArgumentStoreAttribute's type must be Dictionary<string, string>.",
+                            nameof(type));
+                }
+            }
+            else
+            {
+                argAttr ??= new ArgumentAttribute(memberInfo.Name);
+                _memberInfos.Add(argAttr, memberInfo);
+            }
+        }
+    }
 
-		public MemberInfo GetMember ( ArgumentStyle style, string key, bool shortName = false )
-		{
-			if ( key == "" ) key = null;
-			if ( key == null && shortName == true )
-				throw new ArgumentException ();
-			if ( !shortName )
-				key = key?.ToLower ();
+    public MemberInfo? GetMember(in ArgumentStyle style, string? key, bool shortName = false)
+    {
+        if (string.IsNullOrEmpty(key))
+            key = null;
+        
+        if (key == null && shortName)
+            throw new ArgumentException();
 
-			foreach ( var memberInfo in memberInfoList )
-			{
-				ArgumentAttribute attr = memberInfo.GetCustomAttribute<ArgumentAttribute> ();
-				if ( !shortName )
-				{
-					attr.Name = attr.Name?.ToLower ();
-					if ( ( attr.Name == null && key == null ) || $"{style.NamePrestring}{attr.Name}" == key )
-					{
-						memberInfoList.Remove ( memberInfo );
-						return memberInfo;
-					}
-				}
-				else
-				{
-					if ( ( attr.ShortName == null && key == null ) || $"{style.ShortNamePrestring}{attr.ShortName}" == key )
-					{
-						memberInfoList.Remove ( memberInfo );
-						return memberInfo;
-					}
-				}
-			}
+        foreach (var (argAttr, memberInfo) in _memberInfos)
+        {
+            if (((!shortName && argAttr.Name == null) || (shortName && argAttr.ShortName == null)) && key == null)
+                return memberInfo;
+            return $"{(shortName ? style.ShortNamePrefix : style.NamePrefix)}{argAttr.Name}".Equals(key,
+                style.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)
+                ? memberInfo
+                : null;
+        }
 
-			return null;
-		}
+        return null;
+    }
 
-		public bool SetValue<T> ( ref T obj, MemberInfo memberInfo, object value )
-		{
-			if ( memberInfo is PropertyInfo )
-			{
-				if ( ( memberInfo as PropertyInfo ).CanWrite )
-				{
-					if ( obj.GetType ().IsClass )
-						( memberInfo as PropertyInfo ).SetValue ( obj, value );
-					else
-					{
-						object boxed = obj;
-						( memberInfo as PropertyInfo ).SetValue ( boxed, value, null );
-						obj = ( T ) boxed;
-					}
-				}
-				else
-					return ( memberInfo as PropertyInfo ).GetValue ( obj ).Equals ( value );
-				return true;
-			}
-			else if ( memberInfo is FieldInfo )
-			{
-				if ( obj.GetType ().IsClass )
-					( memberInfo as FieldInfo ).SetValue ( obj, value );
-				else
-				{
-					TypedReference tr = __makeref(obj);
-					( memberInfo as FieldInfo ).SetValueDirect ( tr, value );
-				}
-				return true;
-			}
-			return false;
-		}
+    public static bool SetValue<T>(ref T? obj, MemberInfo memberInfo, object value)
+    {
+        switch (memberInfo)
+        {
+            case PropertyInfo propertyInfo:
+                if (propertyInfo.CanWrite)
+                {
+                    if (typeof(T).IsClass)
+                        propertyInfo.SetValue(obj, value);
+                    else
+                    {
+                        object? boxed = obj;
+                        propertyInfo.SetValue(boxed, value, null);
+                        obj = (T)boxed! ?? throw new InvalidCastException();
+                    }
+                }
+                else
+                    throw new ReadOnlyException();
 
-		public bool SetValue<T> ( ref T obj, string key, string value )
-		{
-			Dictionary<string, string> member;
-			if ( ArgumentStoreMember is PropertyInfo )
-				member = ( ArgumentStoreMember as PropertyInfo ).GetValue ( obj ) as Dictionary<string, string>;
-			else if ( ArgumentStoreMember is FieldInfo )
-				member = ( ArgumentStoreMember as FieldInfo ).GetValue ( obj ) as Dictionary<string, string>;
-			else return false;
-			if ( member == null ) member = new Dictionary<string, string> ();
-			member.Add ( key, value ?? "true" );
-			SetValue<T> ( ref obj, ArgumentStoreMember, member );
-			return true;
-		}
+                return true;
+                
+            case FieldInfo fieldInfo:
+                if (obj != null && typeof(T).IsClass)
+                    fieldInfo.SetValue(obj, value);
+                else
+                {
+                    var tr = __makeref(obj);
+                    fieldInfo.SetValueDirect(tr, value);
+                }
+
+                return true;
+            
+            default: return false;
+        }
+    }
+
+    public bool SetStoreValue<T>(ref T? obj, string key, string value)
+    {
+        if (ArgumentStoreMember == null)
+            return false;
+        
+        var member = ArgumentStoreMember switch
+        {
+            PropertyInfo propertyInfo => propertyInfo.GetValue(obj) as Dictionary<string, string>,
+            FieldInfo fieldInfo => fieldInfo.GetValue(obj) as Dictionary<string, string>,
+            _ => throw new InvalidOperationException(),
+        } ?? new Dictionary<string, string>();
+        
+        member.Add(key, value ?? "true");
+        SetValue(ref obj, ArgumentStoreMember, member);
+        
+        return true;
     }
 }

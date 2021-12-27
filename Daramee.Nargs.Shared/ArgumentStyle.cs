@@ -2,32 +2,30 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Daramee.Nargs
-{
-	public enum ArgumentKeyValueSeparator
-	{
-		Space,
-		Equals,
-		Colon,
-	}
-	
-	public struct ArgumentStyle
-	{
-		public static ArgumentStyle DOSStyle => new ArgumentStyle
-		{
-			NamePrestring = "/",
-			ShortNamePrestring = "/",
-			Separator = ArgumentKeyValueSeparator.Space,
-		};
-		public static ArgumentStyle UNIXStyle => new ArgumentStyle
-		{
-			NamePrestring = "--",
-			ShortNamePrestring = "-",
-			Separator = ArgumentKeyValueSeparator.Space,
-		};
+namespace Daramee.Nargs;
 
-		public string NamePrestring;
-		public string ShortNamePrestring;
-		public ArgumentKeyValueSeparator Separator;
-	}
+public enum ArgumentKeyValueSeparator
+{
+    Space,
+    Equals,
+    Colon,
+}
+
+public readonly struct ArgumentStyle
+{
+    public static readonly ArgumentStyle DosStyle = new("/", "/", ArgumentKeyValueSeparator.Space);
+    public static readonly ArgumentStyle UnixStyle = new("--", "-", ArgumentKeyValueSeparator.Space);
+
+    public readonly string NamePrefix;
+    public readonly string ShortNamePrefix;
+    public readonly ArgumentKeyValueSeparator Separator;
+    public readonly bool IgnoreCase;
+
+    public ArgumentStyle(string namePrefix, string shortNamePrefix, ArgumentKeyValueSeparator separator, bool ignoreCase = false)
+    {
+        NamePrefix = namePrefix;
+        ShortNamePrefix = shortNamePrefix;
+        Separator = separator;
+        IgnoreCase = ignoreCase;
+    }
 }

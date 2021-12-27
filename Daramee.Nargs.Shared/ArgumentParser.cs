@@ -1,186 +1,183 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Text;
 
-namespace Daramee.Nargs
+namespace Daramee.Nargs;
+
+public static class ArgumentParser
 {
-    public static class ArgumentParser
+    public static object Parse(Type retType, IEnumerable<string> args, ArgumentStyle style, bool skipNoMember = false)
     {
-		private static char ConvertSeparator ( ArgumentKeyValueSeparator separator )
-		{
-			switch ( separator )
-			{
-				case ArgumentKeyValueSeparator.Space: return ' ';
-				case ArgumentKeyValueSeparator.Equals: return '=';
-				case ArgumentKeyValueSeparator.Colon: return ':';
-				default: return '\0';
-			}
-		}
+        var ret = Activator.CreateInstance(retType);
+        var util = new TypeUtility(retType);
 
-		private static bool ConvertBoolean ( string boolean )
-		{
-			boolean = boolean?.ToLower ();
-			switch ( boolean )
-			{
-				case "t":
-				case "true":
-				case "1":
-				case null:
-					return true;
+        var separatorChar = ConvertSeparator(style.Separator);
 
-				case "f":
-				case "false":
-				case "0":
-					return false;
+        var argsQueue = new Queue<string>(args);
+        while (argsQueue.Count > 0)
+        {
+            var arg = argsQueue.Dequeue();
 
-				default: throw new ArgumentException ( "Boolean value is not valid." );
-			}
-		}
+            var isShortName = false;
+            string? key = null;
+            string? value = null;
 
-		private static Type GetMemberType ( MemberInfo memberInfo )
-		{
-			if ( memberInfo is PropertyInfo )
-				return ( memberInfo as PropertyInfo ).PropertyType;
-			else if ( memberInfo is FieldInfo )
-				return ( memberInfo as FieldInfo ).FieldType;
-			else return null;
-		}
+            if (((style.NamePrefix != style.ShortNamePrefix) && !string.IsNullOrEmpty(style.ShortNamePrefix))
+                && (arg[..style.NamePrefix.Length] != style.NamePrefix)
+                && (arg[..style.ShortNamePrefix.Length] == style.ShortNamePrefix))
+                isShortName = true;
 
-		public static object Parse ( Type retType, string [] args, ArgumentStyle style, bool skipNoMember = false )
-		{
-			object ret = Activator.CreateInstance ( retType );
-			TypeUtility util = new TypeUtility ( retType );
+            var separatorIndex = arg.IndexOf(separatorChar);
+            if (separatorIndex >= 0)
+            {
+                key = arg.Substring(2, separatorIndex - 2);
+                value = arg[separatorIndex..];
+            }
+            else
+            {
+                key = arg;
+                if (key[..style.NamePrefix.Length] != style.NamePrefix)
+                    if (key[..style.ShortNamePrefix.Length] != style.ShortNamePrefix)
+                    {
+                        value = key;
+                        key = null;
+                    }
+            }
 
-			char separatorChar = ConvertSeparator ( style.Separator );
+            var member = util.GetMember(style, key, isShortName);
+            if (member == null)
+            {
+                if (util.ArgumentStoreMember != null)
+                {
+                    util.SetStoreValue(ref ret, key, value);
+                    continue;
+                }
+                if (skipNoMember)
+                    continue;
+                throw new ArgumentException("Unknown argument(s) detected.");
+            }
 
-			Queue<string> argsQueue = new Queue<string> ( args );
-			while ( argsQueue.Count > 0 )
-			{
-				string arg = argsQueue.Dequeue ();
+            var memberType = GetMemberType(member);
+            if (style.Separator == ArgumentKeyValueSeparator.Space && memberType != typeof(bool) && value == null &&
+                argsQueue.Count > 0)
+                if (argsQueue.Peek()[..style.NamePrefix.Length] != style.NamePrefix &&
+                    argsQueue.Peek()[..style.ShortNamePrefix.Length] != style.ShortNamePrefix)
+                    value = argsQueue.Dequeue();
 
-				bool isShortName = false;
-				string key = null, value = null;
+            object? settingValue = null;
 
-				if ( ( ( style.NamePrestring != style.ShortNamePrestring ) && !string.IsNullOrEmpty ( style.ShortNamePrestring ) )
-					&& ( arg.Substring ( 0, style.NamePrestring.Length ) != style.NamePrestring )
-					&& ( arg.Substring ( 0, style.ShortNamePrestring.Length ) == style.ShortNamePrestring ) )
-					isShortName = true;
+            if (memberType == typeof(bool))
+                settingValue = ConvertBoolean(value);
+            else if (memberType == typeof(string))
+                settingValue = value;
+            else if (memberType == typeof(int))
+                settingValue = int.Parse(value);
+            else if (memberType == typeof(uint))
+                settingValue = uint.Parse(value);
+            else if (memberType == typeof(short))
+                settingValue = short.Parse(value);
+            else if (memberType == typeof(ushort))
+                settingValue = ushort.Parse(value);
+            else if (memberType == typeof(long))
+                settingValue = long.Parse(value);
+            else if (memberType == typeof(ulong))
+                settingValue = ulong.Parse(value);
+            else if (memberType == typeof(byte))
+                settingValue = byte.Parse(value);
+            else if (memberType == typeof(sbyte))
+                settingValue = sbyte.Parse(value);
+            else if (memberType == typeof(float))
+                settingValue = float.Parse(value);
+            else if (memberType == typeof(double))
+                settingValue = double.Parse(value);
+            else if (memberType == typeof(DateTime))
+                settingValue = DateTime.Parse(value);
+            else if (memberType == typeof(TimeSpan))
+                settingValue = TimeSpan.Parse(value);
+            else if (memberType == typeof(Enum))
+            {
+                try
+                {
+                    settingValue = Enum.Parse(memberType, value, true);
+                }
+                catch
+                {
+                    settingValue = int.Parse(value);
+                }
+            }
+            else if (memberType == typeof(string[]))
+            {
+                settingValue = value.Split('|');
+            }
+            else
+            {
+                try
+                {
+                    settingValue = Activator.CreateInstance(memberType, value);
+                }
+                catch
+                {
+                    foreach (var methodInfo in memberType.GetMethods())
+                    {
+                        if (!methodInfo.IsStatic) continue;
+                        if (methodInfo.ReturnType == typeof(void)) continue;
+                        
+                        var ps = methodInfo.GetParameters();
+                        
+                        if (ps.Length != 1) continue;
+                        if (ps[0].ParameterType != typeof(string))
+                            continue;
+                        
+                        settingValue = methodInfo.Invoke(memberType, new object[] {value});
+                        break;
+                    }
+                }
+            }
 
-				int separatorIndex = arg.IndexOf ( separatorChar );
-				if ( separatorIndex >= 0 )
-				{
-					key = arg.Substring ( 2, separatorIndex - 2 );
-					value = arg.Substring ( separatorIndex );
-				}
-				else
-				{
-					key = arg;
-					if ( key.Substring ( 0, style.NamePrestring.Length ) != style.NamePrestring )
-						if ( key.Substring ( 0, style.ShortNamePrestring.Length ) != style.ShortNamePrestring )
-						{
-							value = key;
-							key = null;
-						}
-				}
+            if (!TypeUtility.SetValue(ref ret, member, settingValue))
+                throw new ArgumentException();
+        }
 
-				MemberInfo member = util.GetMember ( style, key, isShortName );
-				if ( member == null )
-				{
-					if ( util.ArgumentStoreMember != null )
-					{
-						util.SetValue ( ref ret, key, value );
-						continue;
-					}
-					else if ( skipNoMember )
-						continue;
-					else throw new ArgumentException ( "Unknown argument(s) detected." );
-				}
+        return ret;
+    }
 
-				Type memberType = GetMemberType ( member );
-				if ( style.Separator == ArgumentKeyValueSeparator.Space && memberType != typeof ( bool ) && value == null && argsQueue.Count > 0 )
-					if ( argsQueue.Peek ().Substring ( 0, style.NamePrestring.Length ) != style.NamePrestring &&
-						argsQueue.Peek ().Substring ( 0, style.ShortNamePrestring.Length ) != style.ShortNamePrestring )
-						value = argsQueue.Dequeue ();
+    public static T Parse<T>(IEnumerable<string> args, ArgumentStyle style, bool skipNoMember = false)
+    {
+        return (T) Parse(typeof(T), args, style, skipNoMember);
+    }
+    
+    private static char ConvertSeparator(ArgumentKeyValueSeparator separator) =>
+        separator switch
+        {
+            ArgumentKeyValueSeparator.Space => ' ',
+            ArgumentKeyValueSeparator.Equals => '=',
+            ArgumentKeyValueSeparator.Colon => ':',
+            _ => throw new ArgumentOutOfRangeException(nameof(separator)),
+        };
 
-				object settingValue = null;
+    private static bool ConvertBoolean(string boolean) =>
+        boolean.ToLower() switch
+        {
+            "t" => true,
+            "true" => true,
+            "1" => true,
+            "" => true,
+            null => true,
+            
+            "f" => false,
+            "false" => false,
+            "0" => false,
+            
+            _ => throw new ArgumentException("Boolean value is not valid.")
+        };
 
-				if ( memberType == typeof ( bool ) )
-					settingValue = ConvertBoolean ( value );
-				else if ( memberType == typeof ( string ) )
-					settingValue = value;
-				else if ( memberType == typeof ( int ) )
-					settingValue = int.Parse ( value );
-				else if ( memberType == typeof ( uint ) )
-					settingValue = uint.Parse ( value );
-				else if ( memberType == typeof ( short ) )
-					settingValue = short.Parse ( value );
-				else if ( memberType == typeof ( ushort ) )
-					settingValue = ushort.Parse ( value );
-				else if ( memberType == typeof ( long ) )
-					settingValue = long.Parse ( value );
-				else if ( memberType == typeof ( ulong ) )
-					settingValue = ulong.Parse ( value );
-				else if ( memberType == typeof ( byte ) )
-					settingValue = byte.Parse ( value );
-				else if ( memberType == typeof ( sbyte ) )
-					settingValue = sbyte.Parse ( value );
-				else if ( memberType == typeof ( float ) )
-					settingValue = float.Parse ( value );
-				else if ( memberType == typeof ( double ) )
-					settingValue = double.Parse ( value );
-				else if ( memberType == typeof ( DateTime ) )
-					settingValue = DateTime.Parse ( value );
-				else if ( memberType == typeof ( TimeSpan ) )
-					settingValue = TimeSpan.Parse ( value );
-				else if ( memberType == typeof ( Enum ) )
-				{
-					try
-					{
-						settingValue = Enum.Parse ( memberType, value, true );
-					}
-					catch
-					{
-						settingValue = int.Parse ( value );
-					}
-				}
-				else if ( memberType == typeof ( string [] ) )
-				{
-					settingValue = value.Split ( '|' );
-				}
-				else
-				{
-					try
-					{
-						settingValue = Activator.CreateInstance ( memberType, value );
-					}
-					catch
-					{
-						foreach ( var methodInfo in memberType.GetMethods () )
-						{
-							if ( !methodInfo.IsStatic ) continue;
-							if ( methodInfo.ReturnType == typeof ( void ) ) continue;
-							var ps = methodInfo.GetParameters ();
-							if ( ps.Length != 1 ) continue;
-							if ( ps [ 0 ].ParameterType == typeof ( string ) )
-							{
-								settingValue = methodInfo.Invoke ( memberType, new object [] { value } );
-								break;
-							}
-						}
-					}
-				}
-
-				if ( !util.SetValue ( ref ret, member, settingValue ) )
-					throw new ArgumentException ();
-			}
-
-			return ret;
-		}
-
-		public static T Parse<T> ( string [] args, ArgumentStyle style, bool skipNoMember = false )
-		{
-			return ( T ) Parse ( typeof ( T ), args, style, skipNoMember );
-		}
+    private static Type? GetMemberType(MemberInfo memberInfo)
+    {
+        return memberInfo switch
+        {
+            PropertyInfo propertyInfo => propertyInfo?.PropertyType,
+            FieldInfo fieldInfo => fieldInfo?.FieldType,
+            _ => null
+        };
     }
 }
