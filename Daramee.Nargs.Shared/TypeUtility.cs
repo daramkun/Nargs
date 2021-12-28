@@ -63,8 +63,8 @@ internal class TypeUtility
         {
             if (((!shortName && argAttr.Name == null) || (shortName && argAttr.ShortName == null)) && key == null)
                 return memberInfo;
-            return $"{(shortName ? style.ShortNamePrefix : style.NamePrefix)}{argAttr.Name}".Equals(key,
-                style.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)
+            return $"{(shortName ? style.ShortNamePrefix : style.NamePrefix)}{(shortName ? argAttr.ShortName : argAttr.Name)}"
+                .Equals(key, style.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)
                 ? memberInfo
                 : null;
         }
@@ -72,7 +72,7 @@ internal class TypeUtility
         return null;
     }
 
-    public static bool SetValue<T>(ref T? obj, MemberInfo memberInfo, object value)
+    public static bool SetValue<T>(ref T? obj, MemberInfo memberInfo, object? value)
     {
         switch (memberInfo)
         {
@@ -99,7 +99,7 @@ internal class TypeUtility
                 else
                 {
                     var tr = __makeref(obj);
-                    fieldInfo.SetValueDirect(tr, value);
+                    fieldInfo.SetValueDirect(tr, value!);
                 }
 
                 return true;
@@ -120,9 +120,12 @@ internal class TypeUtility
             _ => throw new InvalidOperationException(),
         } ?? new Dictionary<string, string>();
         
-        member.Add(key, value ?? "true");
+        member.Add(key, value);
         SetValue(ref obj, ArgumentStoreMember, member);
         
         return true;
     }
+
+    public bool DetectNotSettedRequired(IEnumerable<MemberInfo> members) =>
+        _memberInfos.Any(kv => kv.Key.IsRequired && !members.Contains(kv.Value));
 }
